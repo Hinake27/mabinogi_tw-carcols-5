@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>顏色匹配計算器</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <style>
+        :root {
+            --primary: #1c4565;
+            --border: #436279;
+            --bg: #1a1a1a;
+            --text: #fff;
+            --shadow: #4a9eff;
+            --p: clamp(8px, 2vw, 12px);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
+            font-family: system-ui, sans-serif;
+            display: grid;
+            place-items: center;
+            padding: var(--p);
+        }
+
+        .app {
+            width: min(500px, 95vw);
+            background: var(--primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: var(--p);
+        }
+
+        .color-box {
+            aspect-ratio: 16/9;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            margin: var(--p) 0;
+        }
+
+        .flex {
+            display: flex;
+            gap: var(--p);
+        }
+
+        .grid {
+            display: grid;
+            gap: var(--p);
+        }
+
+        input {
+            background: rgba(0,0,0,.3);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px;
+            border-radius: 4px;
+            width: 100%;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--shadow);
+            box-shadow: 0 0 5px var(--shadow);
+        }
+
+        button {
+            background: var(--primary);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: var(--p) 0;
+        }
+
+        button:hover {
+            background: #2a5a80;
+        }
+
+        .suggestion {
+            background: rgba(0,0,0,.2);
+            padding: var(--p);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .suggestion:hover {
+            background: rgba(0,0,0,.3);
+        }
+
+        @media (max-width: 400px) {
+            .flex {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const ColorPicker = () => {
+            const [color, setColor] = React.useState({r:128, g:128, b:128});
+            const [target, setTarget] = React.useState({r:128, g:128, b:128});
+            const [suggestions, setSuggestions] = React.useState([]);
+
+            const toHex = ({r,g,b}) => '#' + [r,g,b].map(x => x.toString(16).padStart(2,'0')).join('').toUpperCase();
+            
+            const calcDiff = (c1, c2) => ({
+                r: Math.abs(c1.r - c2.r),
+                g: Math.abs(c1.g - c2.g),
+                b: Math.abs(c1.b - c2.b)
+            });
+
+            const findMatches = () => {
+                const matches = [];
+                const range = 5;
+                const {r,g,b} = target;
+
+                for(let dr = -range; dr <= range; dr++) {
+                    for(let dg = -range; dg <= range; dg++) {
+                        for(let db = -range; db <= range; db++) {
+                            const newColor = {
+                                r: Math.max(0, Math.min(255, r + dr)),
+                                g: Math.max(0, Math.min(255, g + dg)),
+                                b: Math.max(0, Math.min(255, b + db))
+                            };
+                            const diff = calcDiff(newColor, target);
+                            matches.push({color: newColor, diff});
+                        }
+                    }
+                }
+
+                return matches
+                    .sort((a,b) => (
+                        Object.values(a.diff).reduce((sum,v) => sum+v) - 
+                        Object.values(b.diff).reduce((sum,v) => sum+v)
+                    ))
+                    .slice(0,5);
+            };
+
+            return (
+                <div className="app">
+                    <h1 style={{textAlign:'center', marginBottom:10}}>顏色匹配計算器</h1>
+                    
+                    <div className="flex">
+                        <div style={{flex:1}}>
+                            <div>當前顏色</div>
+                            <div className="color-box" style={{background: `rgb(${color.r},${color.g},${color.b})`}}/>
+                        </div>
+                        <div style={{flex:1}}>
+                            <div>目標顏色</div>
+                            <div className="color-box" style={{background: `rgb(${target.r},${target.g},${target.b})`}}/>
+                        </div>
+                    </div>
+
+                    <div className="grid" style={{marginTop:10}}>
+                        <div className="flex">
+                            <input 
+                                type="number" 
+                                min="0" 
+                                max="255" 
+                                value={target.r}
+                                onChange={e => setTarget(p => ({...p, r: +e.target.value}))}
+                                placeholder="R"
+                            />
+                            <input 
+                                type="number" 
+                                min="0" 
+                                max="255" 
+                                value={target.g}
+                                onChange={e => setTarget(p => ({...p, g: +e.target.value}))}
+                                placeholder="G"
+                            />
+                            <input 
+                                type="number" 
+                                min="0" 
+                                max="255" 
+                                value={target.b}
+                                onChange={e => setTarget(p => ({...p, b: +e.target.value}))}
+                                placeholder="B"
+                            />
+                        </div>
+                        <input 
+                            type="text" 
+                            value={toHex(target)}
+                            onChange={e => {
+                                const hex = e.target.value;
+                                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                                if(result) {
+                                    setTarget({
+                                        r: parseInt(result[1], 16),
+                                        g: parseInt(result[2], 16),
+                                        b: parseInt(result[3], 16)
+                                    });
+                                }
+                            }}
+                            placeholder="HEX"
+                        />
+                    </div>
+
+                    <button onClick={() => {
+                        const matches = findMatches();
+                        setSuggestions(matches);
+                        setColor(matches[0].color);
+                    }}>
+                        計算可能的顏色組合
+                    </button>
+
+                    {suggestions.map((s, i) => (
+                        <div key={i} className="suggestion" onClick={() => setColor(s.color)}>
+                            <div className="flex" style={{alignItems:'center'}}>
+                                <div style={{
+                                    width: 30,
+                                    height: 30,
+                                    borderRadius: 4,
+                                    background: `rgb(${s.color.r},${s.color.g},${s.color.b})`
+                                }}/>
+                                <div>
+                                    RGB({s.color.r}, {s.color.g}, {s.color.b})
+                                    <br/>
+                                    HEX: {toHex(s.color)}
+                                </div>
+                                <div style={{marginLeft:'auto'}}>
+                                    差異: R:{s.diff.r} G:{s.diff.g} B:{s.diff.b}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<ColorPicker />);
+    </script>
+</body>
+</html>
